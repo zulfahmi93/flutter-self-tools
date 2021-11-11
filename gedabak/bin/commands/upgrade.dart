@@ -55,16 +55,6 @@ class UpgradeCommand extends Command {
               break;
             }
 
-            if (line.contains('flutter:') || line.contains('flutter_test:')) {
-              i += 2;
-              continue;
-            }
-            if (line.contains('ukuya_')) {
-              line = project.pubspecContent[++i];
-              i += line.contains('path:') ? 1 : 4;
-              continue;
-            }
-
             final newLine = await _upgradePackage(line, verbose);
             if (newLine != null) {
               project.pubspecContent[i] = newLine;
@@ -85,7 +75,7 @@ class UpgradeCommand extends Command {
 
   Future<String?> _upgradePackage(String raw, bool verbose) async {
     final split = raw.split(':');
-    if (split.length < 2) {
+    if (split.length != 2) {
       return null;
     }
 
@@ -95,6 +85,18 @@ class UpgradeCommand extends Command {
       versionTemp = versionTemp.substring(1);
     }
     final version = versionTemp.trim();
+
+    if (verbose) {
+      print('[VERBOSE] Attempting to upgrading $packageName');
+    }
+
+    Version? currentVersion;
+    try {
+      currentVersion = Version.parse(version);
+    } on FormatException {
+      print('[WARNING] Unable to upgrade $packageName');
+      return null;
+    }
 
     if (_cache.containsKey(packageName)) {
       if (verbose) {
@@ -106,17 +108,16 @@ class UpgradeCommand extends Command {
     final client = PubClient();
     final info = await client.packageInfo(packageName);
 
-    final latest = Version.parse(info.version);
-    final current = Version.parse(version);
-    if (latest <= current) {
+    final latestVersion = Version.parse(info.version);
+    if (latestVersion <= currentVersion) {
       return null;
     }
 
     if (verbose) {
-      print('[VERBOSE] Upgrading $packageName to ${latest.toString()}');
+      print('[VERBOSE] Upgrading $packageName to ${latestVersion.toString()}');
     }
 
-    _cache[packageName] = '^${latest.toString()}';
+    _cache[packageName] = '^${latestVersion.toString()}';
     return '${split[0]}: ${_cache[packageName]}';
   }
 }
