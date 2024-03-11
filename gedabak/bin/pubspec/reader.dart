@@ -33,6 +33,10 @@ Future<Projects> getAllProjects({
     final lines = LineSplitter.split(pubspecYaml).toList();
 
     final packageName = pubspecMap['name'];
+    if (packageName == 'synthetic_package') {
+      continue;
+    }
+
     projects[packageName] = Project(
       name: packageName,
       pubspecPath: file.path,
