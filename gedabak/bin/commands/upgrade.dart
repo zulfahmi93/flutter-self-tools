@@ -5,8 +5,9 @@ import 'package:pub_api_client/pub_api_client.dart';
 import 'package:pub_semver/pub_semver.dart';
 
 import '../pubspec/pubspec.dart';
+import '../utils/utils.dart';
 
-class UpgradeCommand extends Command {
+class UpgradeCommand extends Command with LogMixin {
   // ---------------------------- CONSTRUCTORS ----------------------------
   UpgradeCommand() {
     argParser.addOption('path', abbr: 'p');
@@ -15,6 +16,7 @@ class UpgradeCommand extends Command {
 
   // ------------------------------- FIELDS -------------------------------
   final _cache = <String, String>{};
+  late final bool _verbose;
 
   // ----------------------------- PROPERTIES -----------------------------
   @override
@@ -22,6 +24,9 @@ class UpgradeCommand extends Command {
 
   @override
   String get name => 'upgrade';
+
+  @override
+  bool get verbose => _verbose;
 
   // ------------------------------- METHODS ------------------------------
   @override
@@ -32,7 +37,7 @@ class UpgradeCommand extends Command {
     }
 
     final path = argResults?['path'];
-    final verbose = argResults!['verbose'] as bool;
+    _verbose = argResults!['verbose'] as bool;
 
     final directory = path != null ? Directory(path) : Directory.current;
 
@@ -42,7 +47,7 @@ class UpgradeCommand extends Command {
     );
 
     for (final project in projects.values) {
-      print('Upgrading all dependencies for package ${project.name}');
+      logInfo('Upgrading all dependencies for package ${project.name}.');
 
       for (var i = 1; i < project.pubspecContent.length; i++) {
         var line = project.pubspecContent[i];
@@ -68,7 +73,7 @@ class UpgradeCommand extends Command {
       }
 
       if (!await updatePubspec(project)) {
-        stderr.writeln('WARNING: Failed to update ${project.name}!');
+        logWarning('Failed to update ${project.name}!');
       }
     }
   }
@@ -86,22 +91,18 @@ class UpgradeCommand extends Command {
     }
     final version = versionTemp.trim();
 
-    if (verbose) {
-      print('[VERBOSE] Attempting to upgrading $packageName');
-    }
+    logVerbose('Attempting to upgrade $packageName.');
 
     Version? currentVersion;
     try {
       currentVersion = Version.parse(version);
     } on FormatException {
-      print('[WARNING] Unable to upgrade $packageName');
+      logWarning('Unable to upgrade $packageName!');
       return null;
     }
 
     if (_cache.containsKey(packageName)) {
-      if (verbose) {
-        print('[VERBOSE] Upgrading $packageName to ${_cache[packageName]}');
-      }
+      logVerbose('Upgrading $packageName to ${_cache[packageName]}.');
       return '${split[0]}: ${_cache[packageName]}';
     }
 
@@ -113,9 +114,7 @@ class UpgradeCommand extends Command {
       return null;
     }
 
-    if (verbose) {
-      print('[VERBOSE] Upgrading $packageName to ${latestVersion.toString()}');
-    }
+    logVerbose('Upgrading $packageName to ${latestVersion.toString()}.');
 
     _cache[packageName] = '^${latestVersion.toString()}';
     return '${split[0]}: ${_cache[packageName]}';
